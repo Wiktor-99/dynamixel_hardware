@@ -75,6 +75,16 @@ void DynamixelHardware::set_joints_info()
 {
   for (const auto & joint : info_.joints) {
     joints_info_.push_back(Joint(std::stoi(joint.parameters.at("id"))));
+
+    if (joint.parameters.find("id_of_joint_to_mimic") != joint.parameters.cend())
+    {
+      joints_info_.back().id_of_joint_to_mimic = std::stoi(joint.parameters.at("id_of_joint_to_mimic"));
+    }
+    if (joint.parameters.find("position_multiplier") != joint.parameters.cend())
+    {
+      joints_info_.back().position_multiplier = std::stod(joint.parameters.at("position_multiplier"));
+    }
+
     RCLCPP_INFO(
       rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "joint_id %d ", joints_info_.back().id);
   }
@@ -323,7 +333,13 @@ hardware_interface::return_type DynamixelHardware::read(const rclcpp::Time &, co
     if (not read_current_states(joint.id, data_length, position_velocity_current)) {
       return hardware_interface::return_type::ERROR;
     }
-    joint.state = convert_joint_values(joint.id, position_velocity_current);
+    if (not joint.is_mimic()) {
+      joint.state = convert_joint_values(joint.id, position_velocity_current);
+      joint.state.position /= joint.position_multiplier;
+    }
+    else {
+      joint.state = joints_info_[joint.id_of_joint_to_mimic].state;
+    }
   }
   return hardware_interface::return_type::OK;
 }
@@ -412,7 +428,7 @@ std::vector<int32_t> DynamixelHardware::get_position_commands()
   std::vector<int32_t> commands;
   for (const auto & joint_info : joints_info_) {
     commands.push_back(dynamixel_workbench_.convertRadian2Value(
-      joint_info.id, static_cast<double>(joint_info.command.position)));
+      joint_info.id, static_cast<double>(joint_info.command.position * joint_info.position_multiplier)));
   }
   return commands;
 }
