@@ -122,10 +122,12 @@ bool DynamixelHardware::load_dynamixels()
   for (const auto & joint : joints_info_) {
     uint16_t model_number = 0;
 
-    if (not dynamixel_workbench_.ping(joint.id, &model_number, &log)) {
-      RCLCPP_FATAL(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "%s", log);
-      return false;
+    if (not joint.is_mimic() and not dynamixel_workbench_.ping(joint.id, &model_number, &log)) {
+    RCLCPP_FATAL(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "%s", log);
+    return false;
     }
+
+
   }
   return true;
 }
@@ -190,7 +192,7 @@ bool DynamixelHardware::enable_torque()
 {
   const char * log{};
   for (const auto & joint : joints_info_) {
-    if (not dynamixel_workbench_.torqueOn(joint.id, &log)) {
+    if (not joint.is_mimic() and not dynamixel_workbench_.torqueOn(joint.id, &log)) {
       RCLCPP_FATAL(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "%s", log);
       return false;
     }
@@ -202,7 +204,7 @@ bool DynamixelHardware::disable_torque()
 {
   const char * log{};
   for (const auto & joint : joints_info_) {
-    if (not dynamixel_workbench_.torqueOff(joint.id, &log)) {
+    if (not joint.is_mimic() and not dynamixel_workbench_.torqueOff(joint.id, &log)) {
       RCLCPP_FATAL(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "%s", log);
       return false;
     }
@@ -233,7 +235,7 @@ bool DynamixelHardware::set_position_control_mode()
   const char * log{};
   if (control_mode_ != ControlMode::position) {
     for (const auto & joint : joints_info_) {
-      if (not dynamixel_workbench_.setPositionControlMode(joint.id, &log)) {
+      if (not joint.is_mimic() and not dynamixel_workbench_.setPositionControlMode(joint.id, &log)) {
         RCLCPP_FATAL(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "%s", log);
         return false;
       }
@@ -248,7 +250,7 @@ bool DynamixelHardware::set_velocity_control_mode()
   const char * log{};
   if (control_mode_ != ControlMode::velocity) {
     for (const auto & joint : joints_info_) {
-      if (not dynamixel_workbench_.setVelocityControlMode(joint.id, &log)) {
+      if (not joint.is_mimic() and not dynamixel_workbench_.setVelocityControlMode(joint.id, &log)) {
         RCLCPP_FATAL(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "%s", log);
         return false;
       }
@@ -330,7 +332,7 @@ hardware_interface::return_type DynamixelHardware::read(const rclcpp::Time &, co
   std::vector<uint32_t> position_velocity_current(data_length);
 
   for (auto & joint : joints_info_) {
-    if (not read_current_states(joint.id, data_length, position_velocity_current)) {
+    if (not joint.is_mimic() and not read_current_states(joint.id, data_length, position_velocity_current)) {
       return hardware_interface::return_type::ERROR;
     }
     if (not joint.is_mimic()) {
@@ -427,8 +429,10 @@ std::vector<int32_t> DynamixelHardware::get_position_commands()
 {
   std::vector<int32_t> commands;
   for (const auto & joint_info : joints_info_) {
+    if (not joint_info.is_mimic() ) {
     commands.push_back(dynamixel_workbench_.convertRadian2Value(
       joint_info.id, static_cast<double>(joint_info.command.position * joint_info.position_multiplier)));
+    }
   }
   return commands;
 }

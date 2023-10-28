@@ -47,7 +47,7 @@ struct Joint
   JointValues state{};
   JointValues command{};
 
-  bool is_mimic() {
+  bool is_mimic() const {
     return id_of_joint_to_mimic != -1;
   }
 };
