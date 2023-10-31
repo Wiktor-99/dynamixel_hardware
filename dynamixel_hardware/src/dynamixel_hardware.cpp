@@ -74,19 +74,19 @@ bool DynamixelHardware::set_up_all_dynamixels_components()
 void DynamixelHardware::set_joints_info()
 {
   for (const auto & joint : info_.joints) {
-    joints_info_.push_back(Joint(std::stoi(joint.parameters.at("id"))));
 
-    if (joint.parameters.find("id_of_joint_to_mimic") != joint.parameters.cend())
-    {
+    if (joint.parameters.find("id_of_joint_to_mimic") != joint.parameters.cend()) {
       joints_info_.back().id_of_joint_to_mimic = std::stoi(joint.parameters.at("id_of_joint_to_mimic"));
+      RCLCPP_INFO(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "Joint %s is mimic", joint.name.c_str());
     }
-    if (joint.parameters.find("position_multiplier") != joint.parameters.cend())
-    {
+    else {
+      joints_info_.push_back(Joint(std::stoi(joint.parameters.at("id"))));
+      RCLCPP_INFO(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "joint_id %d ", joints_info_.back().id);
+    }
+
+    if (joint.parameters.find("position_multiplier") != joint.parameters.cend()) {
       joints_info_.back().position_multiplier = std::stod(joint.parameters.at("position_multiplier"));
     }
-
-    RCLCPP_INFO(
-      rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "joint_id %d ", joints_info_.back().id);
   }
 }
 
@@ -123,11 +123,9 @@ bool DynamixelHardware::load_dynamixels()
     uint16_t model_number = 0;
 
     if (not joint.is_mimic() and not dynamixel_workbench_.ping(joint.id, &model_number, &log)) {
-    RCLCPP_FATAL(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "%s", log);
-    return false;
+      RCLCPP_FATAL(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "%s", log);
+      return false;
     }
-
-
   }
   return true;
 }
@@ -215,15 +213,14 @@ bool DynamixelHardware::disable_torque()
 bool DynamixelHardware::init_dynamixels()
 {
   const char * log{};
-  for (const auto & joint_info : info_.joints) {
-    const uint8_t id = std::stoi(joint_info.parameters.at("id"));
-    for (const auto & [name, value] : joint_info.parameters) {
-      if (name != "id") {
+  for (const auto & joint : info_.joints) {
+    const uint8_t id = std::stoi(joint.parameters.at("id"));
+    for (const auto & [name, value] : joint.parameters) {
+      if (name != "id" and name != "position_multiplier" and joint.parameters.find("id_of_joint_to_mimic") == joint.parameters.cend()) {
         if (not dynamixel_workbench_.itemWrite(id, name.c_str(), std::stoi(value), &log)) {
           return false;
         }
-        RCLCPP_INFO(
-rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "Write item with success %s %d", name.c_str(), std::stoi(value));
+        RCLCPP_INFO(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "Write item with success %s %d", name.c_str(), std::stoi(value));
       }
     }
   }
@@ -240,7 +237,7 @@ bool DynamixelHardware::set_position_control_mode()
         return false;
       }
     }
-    RCLCPP_INFO(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "Possition control");
+    RCLCPP_INFO(rclcpp::get_logger(NAME_OF_HARDWARE_INTERFACE), "Position control");
     control_mode_ = ControlMode::position;
   }
   return true;
@@ -410,9 +407,11 @@ hardware_interface::return_type DynamixelHardware::write(const rclcpp::Time &, c
 std::vector<uint8_t> DynamixelHardware::get_ids() const
 {
   std::vector<uint8_t> ids;
-  std::transform(
-    joints_info_.cbegin(), joints_info_.cend(), std::back_inserter(ids),
-    [](const auto & joint_info) { return joint_info.id; });
+  for (const auto& joint : joints_info_) {
+    if (not joint.is_mimic()) {
+        ids.push_back(joint.id);
+    }
+  }
   return ids;
 }
 
