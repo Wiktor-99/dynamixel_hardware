@@ -40,10 +40,16 @@ struct JointValues
 
 struct Joint
 {
-  Joint(uint8_t id) : id{id} {}
-  uint8_t id;
+  Joint(int id) : id{id} {}
+  int id{-1};
+  double position_multiplier{1};
+  int id_of_joint_to_mimic{-1};
   JointValues state{};
   JointValues command{};
+
+  bool is_mimic() const {
+    return id_of_joint_to_mimic != -1;
+  }
 };
 
 enum class ControlMode { none, position, velocity };

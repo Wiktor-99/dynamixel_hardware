@@ -51,6 +51,8 @@ Also **joint** blocks inside of **ros2_control** should be used. Example of **jo
 ```xml
   <joint name="id_1">
     <param name="id">1</param>
+    <param name="position_multiplier">position_multiplier[double]</param>
+    <param name="id_of_joint_to_mimic">id_of_existing_joint_to_mimic[int]</param>
     <param name="Return_Delay_Time">0</param>
     <param name="CW_Angle_Limit">0</param>
     <param name="CCW_Angle_Limit">1023</param>
